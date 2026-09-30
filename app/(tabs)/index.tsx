@@ -1,125 +1,139 @@
-import { StyleSheet, Text, View, ScrollView, Pressable } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { Link } from "expo-router";
+import { useMemo, useState } from "react";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { analyze, formatPercent, parseCount, validateVariant } from "../../lib/abTest";
 
-export default function HomeScreen() {
+type Field = { visitors: string; conversions: string };
+
+export default function CalculatorScreen() {
+  const [a, setA] = useState<Field>({ visitors: "1000", conversions: "100" });
+  const [b, setB] = useState<Field>({ visitors: "1000", conversions: "130" });
+
+  const outcome = useMemo(() => {
+    const va = { visitors: parseCount(a.visitors), conversions: parseCount(a.conversions) };
+    const vb = { visitors: parseCount(b.visitors), conversions: parseCount(b.conversions) };
+    const errors = [...validateVariant(va, "A"), ...validateVariant(vb, "B")];
+    if (errors.length > 0) return { errors: errors.map((e) => e.message), result: null };
+    return { errors: [], result: analyze(va, vb) };
+  }, [a, b]);
+
+  const result = outcome.result;
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Text style={styles.title}>Ab Testing</Text>
-        <Text style={styles.subtitle}>Ab Testing — Mobile app (expo)</Text>
-      </View>
-
-      <View style={styles.cardGrid}>
-        <FeatureCard
-          icon="rocket"
-          title="Getting Started"
-          description="Welcome to the mobile version. Start building your experience."
-        />
-        <FeatureCard
-          icon="code"
-          title="Tech Stack"
-          description="Built with Expo, React Native, and TypeScript."
-        />
-        <FeatureCard
-          icon="phone-portrait"
-          title="Cross-Platform"
-          description="Runs on iOS, Android, and Web from a single codebase."
-        />
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Part of Chaowalit Greepoke's 101 Portfolio Projects
+        <Text style={styles.title} accessibilityRole="header">
+          A/B Test Significance
         </Text>
-        <Link href="https://bookchaowalit.com" asChild>
-          <Pressable>
-            <Text style={styles.link}>bookchaowalit.com</Text>
-          </Pressable>
-        </Link>
+        <Text style={styles.subtitle}>
+          Enter visitors and conversions for each variant to see conversion
+          rates, lift and whether the difference is statistically significant
+          (two-proportion z-test, 95% confidence).
+        </Text>
+      </View>
+
+      <VariantCard label="A (control)" value={a} onChange={setA} />
+      <VariantCard label="B (variant)" value={b} onChange={setB} />
+
+      <View style={styles.card} accessibilityLiveRegion="polite">
+        <Text style={styles.cardTitle}>Result</Text>
+        {outcome.errors.map((msg) => (
+          <Text key={msg} style={styles.error}>
+            {msg}
+          </Text>
+        ))}
+        {result && (
+          <>
+            <Row label="Rate A" value={formatPercent(result.rateA)} />
+            <Row label="Rate B" value={formatPercent(result.rateB)} />
+            <Row
+              label="Lift (B vs A)"
+              value={result.lift === null ? "n/a" : `${result.lift >= 0 ? "+" : ""}${formatPercent(result.lift, 1)}`}
+            />
+            <Row label="z-score" value={result.zScore.toFixed(3)} />
+            <Row label="p-value" value={result.pValue < 0.0001 ? "< 0.0001" : result.pValue.toFixed(4)} />
+            <Text style={[styles.verdict, result.significant ? styles.good : styles.neutral]}>
+              {result.significant
+                ? `Significant: variant ${result.winner} wins`
+                : "Not significant yet — keep the test running"}
+            </Text>
+          </>
+        )}
       </View>
     </ScrollView>
   );
 }
 
-function FeatureCard({
-  icon,
-  title,
-  description,
+function VariantCard({
+  label,
+  value,
+  onChange,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  description: string;
+  label: string;
+  value: Field;
+  onChange: (next: Field) => void;
 }) {
   return (
     <View style={styles.card}>
-      <Ionicons name={icon} size={28} color="#4A90D9" />
-      <Text style={styles.cardTitle}>{title}</Text>
-      <Text style={styles.cardDescription}>{description}</Text>
+      <Text style={styles.cardTitle}>Variant {label}</Text>
+      <Text style={styles.label}>Visitors</Text>
+      <TextInput
+        style={styles.input}
+        keyboardType="number-pad"
+        value={value.visitors}
+        onChangeText={(visitors) => onChange({ ...value, visitors })}
+        accessibilityLabel={`Variant ${label} visitors`}
+      />
+      <Text style={styles.label}>Conversions</Text>
+      <TextInput
+        style={styles.input}
+        keyboardType="number-pad"
+        value={value.conversions}
+        onChangeText={(conversions) => onChange({ ...value, conversions })}
+        accessibilityLabel={`Variant ${label} conversions`}
+      />
+    </View>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={styles.rowValue}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-  },
-  header: {
-    backgroundColor: "#4A90D9",
-    padding: 24,
-    paddingTop: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.85)",
-    lineHeight: 20,
-  },
-  cardGrid: {
-    padding: 16,
-    gap: 12,
-  },
+  container: { flex: 1, backgroundColor: "#F5F5F5" },
+  header: { backgroundColor: "#4A90D9", padding: 24, paddingTop: 16 },
+  title: { fontSize: 24, fontWeight: "bold", color: "#fff", marginBottom: 8 },
+  subtitle: { fontSize: 14, color: "rgba(255,255,255,0.9)", lineHeight: 20 },
   card: {
     backgroundColor: "#fff",
     borderRadius: 12,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    gap: 6,
     elevation: 2,
-    alignItems: "center",
-    gap: 8,
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
+  cardTitle: { fontSize: 17, fontWeight: "600", color: "#333", marginBottom: 4 },
+  label: { fontSize: 13, color: "#555" },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: "#222",
   },
-  cardDescription: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  footer: {
-    padding: 24,
-    alignItems: "center",
-    gap: 8,
-  },
-  footerText: {
-    fontSize: 12,
-    color: "#999",
-  },
-  link: {
-    fontSize: 14,
-    color: "#4A90D9",
-    fontWeight: "500",
-  },
+  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
+  rowLabel: { fontSize: 15, color: "#555" },
+  rowValue: { fontSize: 15, fontWeight: "600", color: "#222" },
+  error: { color: "#B00020", fontSize: 14 },
+  verdict: { marginTop: 8, fontSize: 16, fontWeight: "700" },
+  good: { color: "#1B7F3B" },
+  neutral: { color: "#8A5A00" },
 });
