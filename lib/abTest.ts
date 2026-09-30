@@ -63,10 +63,30 @@ export function analyze(a: Variant, b: Variant, alpha = 0.05): AbTestResult {
   };
 }
 
-/** Parse a user-typed count; returns NaN for anything that is not a plain non-negative integer. */
+/**
+ * Parse a user-typed count; returns NaN for anything that is not a plain
+ * non-negative integer. Commas are accepted only as thousands separators
+ * ("1,200"), so a locale decimal comma such as "7,5" is rejected instead of
+ * silently becoming 75. Values beyond Number.MAX_SAFE_INTEGER are rejected
+ * because they cannot be represented exactly.
+ */
 export function parseCount(text: string): number {
-  const trimmed = text.trim().replace(/,/g, "");
-  return /^\d+$/.test(trimmed) ? Number(trimmed) : NaN;
+  const trimmed = text.trim();
+  if (!/^(\d+|\d{1,3}(,\d{3})+)$/.test(trimmed)) return NaN;
+  const n = Number(trimmed.replace(/,/g, ""));
+  return Number.isSafeInteger(n) ? n : NaN;
+}
+
+/**
+ * Format a p-value for display without letting rounding contradict the
+ * verdict: p = 0.04996 is significant at alpha 0.05, so it must not be shown
+ * as "0.0500".
+ */
+export function formatPValue(p: number, alpha = 0.05): string {
+  if (p < 0.0001) return "< 0.0001";
+  const shown = p.toFixed(4);
+  if (p < alpha && Number(shown) >= alpha) return `< ${alpha.toFixed(4)}`;
+  return shown;
 }
 
 /** Raw text the user typed for both variants (persisted between sessions). */

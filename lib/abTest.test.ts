@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_INPUTS,
   analyze,
+  formatPValue,
   formatPercent,
   isInputs,
   normalCdf,
@@ -74,5 +75,29 @@ describe("helpers", () => {
   });
   it("formats percentages", () => {
     expect(formatPercent(0.1234)).toBe("12.34%");
+  });
+});
+
+describe("pass 3 edge cases", () => {
+  it("rejects locale decimal commas instead of reading them as thousands", () => {
+    expect(parseCount("7,5")).toBeNaN();
+    expect(parseCount("12,50")).toBeNaN();
+    expect(parseCount("1,2,3")).toBeNaN();
+    expect(parseCount("1,000,000")).toBe(1_000_000);
+  });
+  it("rejects counts that are not exactly representable", () => {
+    expect(parseCount("9007199254740993")).toBeNaN();
+    expect(parseCount("9007199254740991")).toBe(Number.MAX_SAFE_INTEGER);
+  });
+  it("rejects hex, exponent and full-width digit input", () => {
+    expect(parseCount("0x10")).toBeNaN();
+    expect(parseCount("1e3")).toBeNaN();
+    expect(parseCount("\uFF11\uFF12")).toBeNaN();
+  });
+  it("never rounds a significant p-value up to the threshold", () => {
+    expect(formatPValue(0.04996)).toBe("< 0.0500");
+    expect(formatPValue(0.05)).toBe("0.0500");
+    expect(formatPValue(0.0123)).toBe("0.0123");
+    expect(formatPValue(0.00001)).toBe("< 0.0001");
   });
 });

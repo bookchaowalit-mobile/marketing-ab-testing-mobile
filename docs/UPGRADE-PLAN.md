@@ -49,3 +49,12 @@ Score: 7/10 (was 6/10) — calculator inputs survive restarts.
 - Accessibility: profile links get `accessibilityRole="link"` + labels; reset button labelled.
 - Advisories: `overrides.postcss ^8.5.28` clears the high-severity PostCSS advisory in Expo metro-config (minor bump). Remaining `image-size` (metro, bundler-only), `uuid` (via `xcode`) and `decode-uri-component` (via `query-string@7`) need an Expo SDK major upgrade; deliberately not auto-fixed.
 - Verified: typecheck, lint, 15 vitest tests, Android `expo export` bundle.
+
+## Done in this pass (pass 3)
+
+Score: 7.5/10 (was 7/10) — edge-case hunt in `lib/abTest.ts`, two real bugs fixed.
+
+- Bug: `parseCount` stripped every comma, so a locale decimal like "7,5" became 75 visitors. Commas are now accepted only as thousands grouping ("1,200"); counts above `Number.MAX_SAFE_INTEGER` are rejected.
+- Bug: a p-value of 0.04996 was shown as "0.0500" next to a "Significant" verdict. New `formatPValue` never rounds a significant p-value up to alpha (shows "< 0.0500").
+- Regression tests for decimal commas, unsafe integers, hex/exponent/full-width digits and the p-value rounding.
+- Verified: typecheck, lint, 19 vitest tests, Android `expo export`.

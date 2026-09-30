@@ -4,6 +4,7 @@ import {
   DEFAULT_INPUTS,
   type Inputs,
   analyze,
+  formatPValue,
   formatPercent,
   isInputs,
   parseCount,
@@ -72,7 +73,7 @@ export default function CalculatorScreen() {
               value={result.lift === null ? "n/a" : `${result.lift >= 0 ? "+" : ""}${formatPercent(result.lift, 1)}`}
             />
             <Row label="z-score" value={result.zScore.toFixed(3)} />
-            <Row label="p-value" value={result.pValue < 0.0001 ? "< 0.0001" : result.pValue.toFixed(4)} />
+            <Row label="p-value" value={formatPValue(result.pValue)} />
             <Text style={[styles.verdict, result.significant ? styles.good : styles.neutral]}>
               {result.significant
                 ? `Significant: variant ${result.winner} wins`
