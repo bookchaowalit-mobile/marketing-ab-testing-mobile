@@ -1,12 +1,25 @@
-import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { analyze, formatPercent, parseCount, validateVariant } from "../../lib/abTest";
+import { useMemo } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  DEFAULT_INPUTS,
+  type Inputs,
+  analyze,
+  formatPercent,
+  isInputs,
+  parseCount,
+  validateVariant,
+} from "../../lib/abTest";
+import { valueCodec } from "../../lib/persist";
+import { usePersistentState } from "../../lib/usePersistentState";
 
-type Field = { visitors: string; conversions: string };
+type Field = Inputs["a"];
+const inputsCodec = valueCodec(isInputs);
 
 export default function CalculatorScreen() {
-  const [a, setA] = useState<Field>({ visitors: "1000", conversions: "100" });
-  const [b, setB] = useState<Field>({ visitors: "1000", conversions: "130" });
+  const [inputs, setInputs] = usePersistentState<Inputs>("abtest.inputs.v1", DEFAULT_INPUTS, inputsCodec);
+  const { a, b } = inputs;
+  const setA = (next: Field) => setInputs((cur) => ({ ...cur, a: next }));
+  const setB = (next: Field) => setInputs((cur) => ({ ...cur, b: next }));
 
   const outcome = useMemo(() => {
     const va = { visitors: parseCount(a.visitors), conversions: parseCount(a.conversions) };
@@ -33,6 +46,15 @@ export default function CalculatorScreen() {
 
       <VariantCard label="A (control)" value={a} onChange={setA} />
       <VariantCard label="B (variant)" value={b} onChange={setB} />
+
+      <Pressable
+        accessibilityLabel="Reset both variants to the example numbers"
+        accessibilityRole="button"
+        onPress={() => setInputs(DEFAULT_INPUTS)}
+        style={styles.reset}
+      >
+        <Text style={styles.resetText}>Reset example</Text>
+      </Pressable>
 
       <View style={styles.card} accessibilityLiveRegion="polite">
         <Text style={styles.cardTitle}>Result</Text>
@@ -105,7 +127,10 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  reset: { alignSelf: "flex-end", marginHorizontal: 16, marginTop: 8, paddingVertical: 8, paddingHorizontal: 12 },
+  resetText: { color: "#1F5FA8", fontWeight: "600" },
   container: { flex: 1, backgroundColor: "#F5F5F5" },
+
   header: { backgroundColor: "#4A90D9", padding: 24, paddingTop: 16 },
   title: { fontSize: 24, fontWeight: "bold", color: "#fff", marginBottom: 8 },
   subtitle: { fontSize: 14, color: "rgba(255,255,255,0.9)", lineHeight: 20 },

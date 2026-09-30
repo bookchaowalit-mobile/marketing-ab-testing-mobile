@@ -69,6 +69,28 @@ export function parseCount(text: string): number {
   return /^\d+$/.test(trimmed) ? Number(trimmed) : NaN;
 }
 
+/** Raw text the user typed for both variants (persisted between sessions). */
+export type Inputs = { a: { visitors: string; conversions: string }; b: { visitors: string; conversions: string } };
+
+export const DEFAULT_INPUTS: Inputs = {
+  a: { visitors: "1000", conversions: "100" },
+  b: { visitors: "1000", conversions: "130" },
+};
+
+function isField(value: unknown): value is Inputs["a"] {
+  if (typeof value !== "object" || value === null) return false;
+  const f = value as Record<string, unknown>;
+  return typeof f.visitors === "string" && typeof f.conversions === "string" && f.visitors.length <= 15 && f.conversions.length <= 15;
+}
+
+/** Type guard used when loading saved inputs from local storage. */
+export function isInputs(value: unknown): value is Inputs {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return isField(v.a) && isField(v.b);
+}
+
 export function formatPercent(value: number, digits = 2): string {
+
   return `${(value * 100).toFixed(digits)}%`;
 }

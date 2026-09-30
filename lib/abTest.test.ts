@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { analyze, formatPercent, normalCdf, parseCount, validateVariant } from "./abTest";
+import {
+  DEFAULT_INPUTS,
+  analyze,
+  formatPercent,
+  isInputs,
+  normalCdf,
+  parseCount,
+  validateVariant,
+} from "./abTest";
+
+describe("isInputs", () => {
+  it("accepts saved inputs and rejects malformed ones", () => {
+    expect(isInputs(DEFAULT_INPUTS)).toBe(true);
+    expect(isInputs({ a: { visitors: "1", conversions: "0" } })).toBe(false);
+    expect(isInputs({ a: { visitors: 1, conversions: "0" }, b: DEFAULT_INPUTS.b })).toBe(false);
+    expect(isInputs({ a: { visitors: "9".repeat(40), conversions: "0" }, b: DEFAULT_INPUTS.b })).toBe(false);
+    expect(isInputs(null)).toBe(false);
+  });
+});
 
 describe("normalCdf", () => {
   it("matches known values", () => {
