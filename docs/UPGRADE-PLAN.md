@@ -1,0 +1,60 @@
+# Upgrade Plan
+
+## Current state
+
+- Before this pass: **2/10** — Expo template scaffold with placeholder
+  screens; CI masked every failure with `|| true`; lint failed; the app could
+  not be bundled (missing `expo-asset`, `query-string`, outdated
+  `expo-router`); `app.json` referenced icon files that do not exist.
+- After this pass: **6/10** — real core feature, tested pure logic,
+  honest CI, app bundles for Android.
+
+## Backlog
+
+### P0
+- Add real app icons (`assets/icon.png`, `assets/adaptive-icon.png`) and
+  reference them from `app.json` before any store build.
+
+### P1
+- Add component tests (jest-expo + @testing-library/react-native) for the
+  main screen.
+- Dark-mode palette (`userInterfaceStyle` is `automatic` but colors are
+  hard-coded light).
+
+### P2
+- Sync with the web frontend's API once one exists.
+- Upgrade Expo SDK (clears remaining `npm audit` findings in Expo tooling).
+
+## Done in this pass
+
+- Home tab is now an A/B significance calculator (rates, lift, z-test p-value, verdict) with input validation.
+- Pure logic in `lib/` with Vitest unit tests (`npm test`).
+- CI now runs `npm ci`, lint, typecheck, tests and an Android bundle export
+  with no failure masking; EAS preview build is owner-triggered only and
+  `eas.json` is committed.
+- Added `eslint.config.js`, `typecheck`/`test`/`validate` scripts and a
+  committed `package-lock.json`.
+- Fixed dependencies so Metro can bundle (SDK 53-aligned `expo-router`,
+  `react-native`, `expo-constants`; added `expo-asset`, `expo-font`,
+  `query-string`).
+- `app.json`: removed references to missing icon files; Android package id
+  no longer contains hyphens (invalid for Android application IDs).
+- Removed the placeholder Explore tab.
+
+## Done in this pass (pass 2)
+
+Score: 7/10 (was 6/10) — calculator inputs survive restarts.
+
+- Persistence: the two variants' inputs are saved with AsyncStorage (`@react-native-async-storage/async-storage` 2.1.2) via `lib/usePersistentState.ts`; loads are versioned and validated (`lib/persist.ts`, `isInputs`), so corrupt storage falls back to the example numbers. Added a "Reset example" button.
+- Accessibility: profile links get `accessibilityRole="link"` + labels; reset button labelled.
+- Advisories: `overrides.postcss ^8.5.28` clears the high-severity PostCSS advisory in Expo metro-config (minor bump). Remaining `image-size` (metro, bundler-only), `uuid` (via `xcode`) and `decode-uri-component` (via `query-string@7`) need an Expo SDK major upgrade; deliberately not auto-fixed.
+- Verified: typecheck, lint, 15 vitest tests, Android `expo export` bundle.
+
+## Done in this pass (pass 3)
+
+Score: 7.5/10 (was 7/10) — edge-case hunt in `lib/abTest.ts`, two real bugs fixed.
+
+- Bug: `parseCount` stripped every comma, so a locale decimal like "7,5" became 75 visitors. Commas are now accepted only as thousands grouping ("1,200"); counts above `Number.MAX_SAFE_INTEGER` are rejected.
+- Bug: a p-value of 0.04996 was shown as "0.0500" next to a "Significant" verdict. New `formatPValue` never rounds a significant p-value up to alpha (shows "< 0.0500").
+- Regression tests for decimal commas, unsafe integers, hex/exponent/full-width digits and the p-value rounding.
+- Verified: typecheck, lint, 19 vitest tests, Android `expo export`.
